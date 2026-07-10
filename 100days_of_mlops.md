@@ -402,3 +402,79 @@ add
 n_estimators=200
 ```
 
+### Task 16
+```
+    After training a model, the xFusionCorp Industries ML team requires DVC to surface model metrics through dvc metrics show. Although the fraud-detection pipeline successfully trains a model and generates a metrics.json file, DVC currently does not recognize this file as a metric. Ensure that the metrics.json file is properly configured to be recognized by DVC.
+
+
+A project exists at /root/code/fraud-detection/ with a three-stage DVC pipeline (process_data, split_data, train). The train stage runs src/models/train.py, which writes the model to models/model.pkl and metrics to metrics.json. Do not modify the Python files.
+
+Acceptance criteria:
+
+The train stage in dvc.yaml declares metrics.json as a DVC metric output rather than a regular file output, with cache: false so the JSON lives in Git for diff history rather than in the DVC cache.
+The pipeline has been reproduced so the metric registration takes effect, and dvc metrics show reports the accuracy and f1_score values from metrics.json.
+Tip: once the metric is registered, dvc metrics diff compares its values across Git commits, which is useful when iterating on the model.
+```
+### Solution
+```
+Let me walk you through both the concept and the exact fix for this task.
+The key concept
+In DVC pipelines (dvc.yaml), each stage has outputs, and DVC treats them differently depending on how you declare them:
+DeclarationPurposeWhere it livesouts:Regular output (data, models)DVC cache (.dvc/cache), tracked via .gitignoremetrics:Metric outputCan live in Git if cache: false, so you get diffable historyplots:Plot outputSimilar to metrics, for plot data
+By default, anything under outs: — even a metrics.json — is just treated as a blob DVC caches. DVC has no idea it contains accuracy/f1_score fields you want to compare across commits. That's why dvc metrics show currently shows nothing: the file exists on disk, but DVC's pipeline graph doesn't know it's a metric.
+Declaring it under metrics: with cache: false does two things:
+
+Tells DVC "parse this as JSON and expose its keys via metrics show/diff."
+Skips DVC caching it — instead it's just a normal file that Git tracks directly (since it's small, human-readable, and you want git diff-style history across commits, not binary cache storage).
+
+Step-by-step fix
+1. Look at the current dvc.yaml
+bashcat /root/code/fraud-detection/dvc.yaml
+You'll likely see the train stage looking something like:
+yaml  train:
+    cmd: python src/models/train.py
+    deps:
+      - src/models/train.py
+      - data/processed/train.csv
+    outs:
+      - models/model.pkl
+      - metrics.json
+2. Edit the train stage — move metrics.json out of outs: and into a metrics: block with cache: false:
+yaml  train:
+    cmd: python src/models/train.py
+    deps:
+      - src/models/train.py
+      - data/processed/train.csv
+    outs:
+      - models/model.pkl
+    metrics:
+      - metrics.json:
+          cache: false
+Notes:
+
+models/model.pkl stays under outs: — it's a large binary artifact, belongs in DVC cache, not Git.
+metrics.json moves to metrics: with cache: false — small JSON, belongs in Git, and DVC will parse it for metrics commands.
+
+3. Reproduce the pipeline so DVC re-registers the stage outputs per the new config:
+bashcd /root/code/fraud-detection
+dvc repro
+This reruns any stage whose deps/outs definition changed (here, just re-registers train since the DAG config changed — it may or may not literally re-execute train.py depending on whether DVC sees the cmd/deps as changed, but it will update dvc.lock to reflect metrics.json as a metric).
+4. Verify it's recognized
+bashdvc metrics show
+Expected output showing something like:
+Path            accuracy    f1_score
+metrics.json    0.94        0.91
+5. Commit the change (so it's real in Git, and so metrics.json's history is trackable going forward):
+bashgit add dvc.yaml dvc.lock metrics.json
+git commit -m "Register metrics.json as a DVC metric output"
+Why this matters going forward (the tip in the task)
+Once metrics.json is a proper metric:
+bashdvc metrics diff HEAD~1
+will show you exactly how accuracy/f1_score moved between commits — this is the core DVC workflow for tracking whether a model change improved or regressed performance, without needing a separate experiment tracker for simple cases.
+If your metrics.json isn't showing up after dvc repro, double check:
+
+Indentation in YAML (list item under metrics: needs the - metrics.json: then nested cache: false)
+That dvc.lock actually got regenerated (cat dvc.lock and check the train stage's outs/metrics split)
+Run dvc status to see if DVC thinks the pipeline is out of sync
+```
+
