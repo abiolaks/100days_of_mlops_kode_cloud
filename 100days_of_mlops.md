@@ -477,4 +477,56 @@ Indentation in YAML (list item under metrics: needs the - metrics.json: then nes
 That dvc.lock actually got regenerated (cat dvc.lock and check the train stage's outs/metrics split)
 Run dvc status to see if DVC thinks the pipeline is out of sync
 ```
+### Task 17
+```
+The xFusionCorp Industries MLOps team needs every model training run to be reproducible, automatically tracked, and easy to compare so a chosen configuration can be promoted into version control. The fraud-detection pipeline is parameterized by max_depth, currently set shallow enough to underfit. Using DVC experiments, run three tracked experiments over different max_depth values, compare their recorded f1_score on the held-out test set, and promote the best-scoring run so its parameters, metrics, and model become the tracked workspace state.
+
+
+A project exists at /root/code/fraud-detection/ with a parameterised DVC pipeline already in place. params.yaml declares n_estimators: 100 and max_depth: 4, and the baseline pipeline has been run once. src/models/train.py reads both parameters, trains the model, and evaluates it on the held-out test set, writing the real accuracy and f1_score to metrics.json. Do not modify the Python files.
+
+Acceptance criteria:
+
+Three DVC experiments have been run, each with a different value for max_depth across a reasonable range (for example 2, 6, and 12); each experiment retrains the model and produces a fresh metrics.json.
+The experiment with the highest f1_score is applied to the workspace, so its max_depth, metrics.json, and models/model.pkl become the tracked state.
+```
+### Solution
+```
+Step 1: Confirm the baseline state
+bash
+cd /root/code/fraud-detection/
+cat params.yaml
+git status
+You should see max_depth: 4, n_estimators: 100, and a clean-ish working tree (baseline pipeline already run/committed).
+Step 2: Run three DVC experiments with different max_depth
+DVC experiments let you override params on the fly without touching params.yaml or committing anything — each run is tracked in an internal experiments namespace.
+bash
+dvc exp run -S max_depth=2
+dvc exp run -S max_depth=6
+dvc exp run -S max_depth=12
+Each of these will re-run the pipeline stages affected by max_depth (the training stage, and anything downstream like evaluation), producing a fresh metrics.json and models/model.pkl for that experiment — without disturbing your current workspace files until you decide to keep one.
+Step 3: Compare the experiments
+bash
+dvc exp show --only-changed
+
+This prints a table with columns for max_depth, n_estimators, accuracy, and f1_score for each experiment, so you can see at a glance which run scored highest on f1_score. (This is the same data the DVC extension's EXPERIMENTS view in the Activity Bar shows — worth opening if you're in VS Code, since it's easier to eyeball there.)
+You're looking for the experiment name (something like exp-xxxxx) tied to whichever max_depth produced the best f1_score. Given underfitting at max_depth=4, it's likely — but not guaranteed — that a deeper tree (6 or 12) wins; don't assume, just read it off the table.
+Step 4: Promote the winning experiment to the workspace
+Once you've identified the best experiment name from dvc exp show:
+bash
+dvc exp apply <best-exp-name>
+This overwrites your workspace with that experiment's params.yaml (max_depth), metrics.json, and models/model.pkl — exactly the tracked state the criteria ask for.
+Step 5: Verify and persist
+bash
+cat params.yaml        # confirm max_depth matches the winning experiment
+cat metrics.json        # confirm f1_score matches
+git status               # see the modified files
+git add params.yaml dvc.lock metrics.json models/model.pkl
+git commit -m "Promote best max_depth from DVC experiments (highest f1_score)"
+That last commit is what makes it "promoted into version control" — dvc exp apply only changes the workspace; committing locks it in as the new tracked baseline.
+
+A couple of notes:
+
+If dvc exp show output is hard to read in the terminal, dvc exp show --csv > experiments.csv and opening that is often easier for comparison.
+If two experiments tie or are very close on f1_score, you may want to also glance at accuracy as a tiebreaker, but the task's stated criterion is strictly the highest f1_score.
+```
 
