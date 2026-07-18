@@ -563,9 +563,26 @@ dvc checkout
 
 ```
 ### Task 19
+Complete the xFusionCorp Industries fraud-detection production DVC pipeline. Three stages are already wired in `dvc.yaml`, two remain, and the pipeline must finish as a reproducible, SeaweedFS-backed, v1.0-tagged release.
+
+A project exists at `/root/code/ml-pipeline/` with Git and DVC initialised. The `params.yaml` is in place and the `.dvc/config` is pre-configured to push to the SeaweedFS bucket `dvc-storage` at `http://localhost:8333`.
+The `ingest`, `validate`, and `preprocess` stages are already declared in `dvc.yaml`, but one of them is misconfigured and prevents `dvc repro` from completing — run `dvc repro` to see it fail. The two scripts for the remaining stages are pre-staged at `/root/code/ml-pipeline/scripts-staging/train.py` and `scripts-staging/evaluate.py`, and belong in `scripts/`.
+Acceptance criteria:
+
+* The misconfigured existing stage is corrected so `dvc repro` can complete.
+* Two further stages are declared in `dvc.yaml`:
+   * `train` – Depends on the preprocessed dataset and `scripts/train.py`; reads `n_estimators`, `max_depth`, `test_size`, and `random_seed` from `params.yaml`; outputs `models/model.pkl` and `data/processed/test_split.csv`; declares `metrics.json` as a DVC metric with `cache: false`.
+   * `evaluate` – Depends on `models/model.pkl`, `data/processed/test_split.csv`, and `scripts/evaluate.py`; outputs `reports/evaluation.json` declared with `cache: false`.
+* The full pipeline has been reproduced, the cache pushed to the SeaweedFS remote, and the current state tagged `v1.0`.
+* Every change is committed to Git so the release is fully captured.
+
+Open the SeaweedFS Filer button at the top of the lab and navigate to `/buckets/dvc-storage/` to confirm that the bucket holds the pushed artefacts under the `files/md5/...` layout.
 
 
 ### Solution
+- copy the train.py, evaluate.py from scripts-staging into script folder
+- add train and evaluate stages to the dvc.yaml
+- correct the output of the preprocess to data/preprocessed/clean.csv and not cleaned.csv
 define this inside dvc.yaml
 ```
 stages:
@@ -598,6 +615,7 @@ stages:
       - scripts/train.py
     outs:
       - models/model.pkl
+      - data/processed/test_split.csv
     params:
       - n_estimators
       - max_depth
@@ -616,6 +634,22 @@ stages:
       - reports/evaluation.json:
           cache: false
 
+```
+- run the pipeline stages using the command below
+```
+dvc repro
+```
+- push it to the remote storage ( ensure you have configure this in the dvc.config)
+```
+dvc push
+```
+
+- stage and commit the changes
+- tag the v1.0 -
+```
+git tag -a v1.0 -m "Fraud detection pipeline v1.0 release"
+or
+git tag v1.0
 ```
 
 
