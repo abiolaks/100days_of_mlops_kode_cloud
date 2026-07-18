@@ -562,5 +562,60 @@ git checkout main
 dvc checkout
 
 ```
+### Task 19
+
+
+### Solution
+define this inside dvc.yaml
+```
+stages:
+  ingest:
+    cmd: python3 scripts/ingest.py
+    deps:
+      - scripts/ingest.py
+      - data/raw/data.csv
+
+  validate:
+    cmd: python3 scripts/validate.py
+    deps:
+      - data/raw/data.csv
+      - scripts/validate.py
+    outs:
+      - reports/validation.json:
+          cache: false
+
+  preprocess:
+    cmd: python3 scripts/preprocess.py
+    deps:
+      - data/raw/data.csv
+      - scripts/preprocess.py
+    outs:
+      - data/processed/clean.csv
+  train:
+    cmd: python3 scripts/train.py
+    deps:
+      - data/processed/clean.csv
+      - scripts/train.py
+    outs:
+      - models/model.pkl
+    params:
+      - n_estimators
+      - max_depth
+      - test_size
+      - random_seed
+    metrics:
+      - metrics.json:
+          cache: false
+  evaluate:
+    cmd: python3 scripts/evaluate.py
+    deps:
+    - models/model.pkl
+    - data/processed/test_split.csv
+    - scripts/evaluate.py
+    outs:
+      - reports/evaluation.json:
+          cache: false
+
+```
 
 
