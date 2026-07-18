@@ -62,3 +62,56 @@ with open("metrics.json", "w") as f:
 print(f"max_depth={max_depth}, n_estimators={n_estimators}, metrics={metrics}")
 # end
 
+# Production Grade Data ingestion scirpt
+import os
+import pandas as pd
+
+EXPECTED_COLUMNS = [
+    "customer_id",
+    "amount",
+    "merchant",
+    "is_fraud"
+]
+
+def load_and_validate_csv(file_path):
+    # 1. File exists
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"{file_path} not found.")
+
+    # 2. File not empty
+    if os.path.getsize(file_path) == 0:
+        raise ValueError("CSV file is empty.")
+
+    # 3. Read file
+    try:
+        df = pd.read_csv(file_path)
+    except Exception as e:
+        raise ValueError(f"Unable to read CSV: {e}")
+
+    # 4. DataFrame not empty
+    if df.empty:
+        raise ValueError("Dataset contains no rows.")
+
+    # 5. Required columns
+    missing = set(EXPECTED_COLUMNS) - set(df.columns)
+    if missing:
+        raise ValueError(f"Missing columns: {missing}")
+
+    # 6. Duplicate rows
+    if df.duplicated().any():
+        print("Warning: Duplicate rows detected.")
+
+    # 7. Missing values
+    if df[EXPECTED_COLUMNS].isnull().any().any():
+        raise ValueError("Required columns contain missing values.")
+
+    return df
+
+
+df = load_and_validate_csv("data/raw/data.csv")
+
+print(
+    f"Loaded {len(df)} rows and {len(df.columns)} columns successfully."
+)
+# End
+
