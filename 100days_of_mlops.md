@@ -651,5 +651,13 @@ git tag -a v1.0 -m "Fraud detection pipeline v1.0 release"
 or
 git tag v1.0
 ```
+## tips for dvc
+- to go back to model version
+```
+git checkout v1.0
+dvc checkout # if everything is local
+or
+dvc pull # if on remote
+```
 
 
