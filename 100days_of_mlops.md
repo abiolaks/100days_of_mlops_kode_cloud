@@ -659,5 +659,71 @@ dvc checkout # if everything is local
 or
 dvc pull # if on remote
 ```
+### Task 20  - start mlflow tracking server
+The xFusionCorp Industries ML team is in the process of adopting MLflow for their experiment tracking. Your task is to set up a local MLflow tracking server on the ML pipeline workstation, enabling the team to log experiments from their training code.
+
+
+- MLflow is pre-installed on the controlplane. Launch the tracking server in the background and choose the flags that satisfy every end-state requirement below.
+
+- The server listens on port 5000 and is reachable on all network interfaces, not only localhost.
+
+- The backend store is a SQLite database at /root/code/mlflow-backend/mlflow.db. Create any parent directory first — MLflow aborts at startup if the backend directory is missing.
+
+- The artifact root is /root/code/mlflow-artifacts/.
+
+- The MLflow UI button at the top of the lab routes through the lab proxy, which reaches the server with a non-localhost host header and a different origin. Launch the server so it accepts any host header and any origin; otherwise the button returns a 403 or CORS error.
+
+-The server process persists in the background so it survives terminal closure.
+
+- Once the server is running, the Default experiment can be viewed from the MLflow UI button. The experiment is empty.
+
+### Solution
+The concept: what a tracking server actually needs
+mlflow server bundles together a few independent concerns, each controlled by its own flag:
+#### Concern Flag
+- Where it listens: --host, --port
+- Where run metadata (params, metrics, tags) is stored: --backend-store-uri
+- Where large artifacts (models, plots, files) are stored: --default-artifact-root (or --artifacts-destination in newer versions)
+- Whether it survives your terminal closing how you launch it: (nohup, &, disown)
+
+#### Steps
+1. create the directory to store the artificats and for the backend sqlite db in the parent directory
+```
+mkdir -p /root/code/mlflow-backend
+mkdir -p /root/code/mlflow-artifacts
+```
+2. Launch the server in the background, surviving terminal closure:
+```
+nohup mlflow server \
+  --host 0.0.0.0 \
+  --port 5000 \
+  --backend-store-uri sqlite:////root/code/mlflow-backend/mlflow.db \
+  --default-artifact-root /root/code/mlflow-artifacts/ \
+  --allowed-hosts "*" \
+  --cors-allowed-origins "*" \
+  > /root/code/mlflow-backend/mlflow-server.log 2>&1 &
+
+disown
+```
+3. Verify it's actually up and listening:
+```
+sleep 3
+curl -s http://localhost:5000/health
+ps aux | grep "mlflow server"
+```
+4. Check the log if anything looks off - for troubleshoting
+```
+cat /root/code/mlflow-backend/mlflow-server.log
+```
+### Notes on the Flags
+Why each part is there
+Flag Requirement it satisfies
+--host 0.0.0.0: listens on all interfaces, not just localhost (req 1)
+--port 5000: listens on port 5000 (req 1)
+--backend-store-uri sqlite:////root/code/mlflow-backend/mlflow.dbSQLite: backend at that exact path — note 4 slashes for an absolute path (req 2)
+--default-artifact-root /root/code/mlflow-artifacts/artifact: storage location (req 3)
+--allowed-hosts: "*"accepts any Host header, so the proxy's rewritten host doesn't get 403'd (req 4)
+--cors-allowed-origins "*"accepts any Origin, so the lab UI's cross-origin requests aren't blocked (req 4)
+nohup ... & + disown: detaches the process from the terminal session so it survives you closing the shell (req 5)
 
 
