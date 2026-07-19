@@ -718,12 +718,12 @@ cat /root/code/mlflow-backend/mlflow-server.log
 ### Notes on the Flags
 Why each part is there
 Flag Requirement it satisfies
---host 0.0.0.0: listens on all interfaces, not just localhost (req 1)
---port 5000: listens on port 5000 (req 1)
---backend-store-uri sqlite:////root/code/mlflow-backend/mlflow.dbSQLite: backend at that exact path — note 4 slashes for an absolute path (req 2)
---default-artifact-root /root/code/mlflow-artifacts/artifact: storage location (req 3)
---allowed-hosts: "*"accepts any Host header, so the proxy's rewritten host doesn't get 403'd (req 4)
---cors-allowed-origins "*"accepts any Origin, so the lab UI's cross-origin requests aren't blocked (req 4)
-nohup ... & + disown: detaches the process from the terminal session so it survives you closing the shell (req 5)
+* --host 0.0.0.0: listens on all interfaces, not just localhost (req 1)
+* --port 5000: listens on port 5000 (req 1)
+* --backend-store-uri sqlite:////root/code/mlflow-backend/mlflow.dbSQLite: backend at that exact path — note 4 slashes for an absolute path (req 2)
+* --default-artifact-root /root/code/mlflow-artifacts/artifact: storage location (req 3)
+* --allowed-hosts: "*"accepts any Host header, so the proxy's rewritten host doesn't get 403'd (req 4)
+* --cors-allowed-origins "*"accepts any Origin, so the lab UI's cross-origin requests aren't blocked (req 4)
+* nohup ... & + disown: detaches the process from the terminal session so it survives you closing the shell (req 5)
 
 
