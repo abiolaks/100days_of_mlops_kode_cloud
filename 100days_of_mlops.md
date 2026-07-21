@@ -753,5 +753,65 @@ mlflow_sklearn.log_model(model, name="model")
 python3 log_experiment.py
 
 ```
+### Task 22
+- You are tasked with onboarding two new ML projects for the xFusionCorp Industries ML platform team. It is essential that each project is organized under its own MLflow experiment, rather than sharing the `Default` experiment. Proceed to register both experiments using the MLflow UI, ensuring that they are correctly tagged with the owning team.
+
+1. The MLflow tracking server is already running on port `5000`. The MLflow UI button at the top of the lab can be opened to view the dashboard. One seeded experiment (`legacy-models`) is listed alongside the platform-created `Default`—both act as reference material and must not be modified.
+2. Using the MLflow UI, register two new experiments with the experiment-level metadata below. The task is complete when both records satisfy every bullet.
+   * `fraud-detection`
+      * Experiment-level description is a non-empty string describing the project (any phrasing).
+      * Experiment-level tag: key `team`, value `ml-platform`.
+   * `churn-prediction`
+      * Experiment-level tag: key `team`, value `analytics`.
+    
+### Solution
+- This can be done via mlflow UI by following the steps below:
+- create a two new experiment with the different project name( fraud-detection and churn-prediction)
+- add tag to both of the project but add description to only the fraud-detection
+
+#### code flow
+```
+import mlflow
+from mlflow.tracking import MlflowClient
+
+# Point the client at your tracking server (port 5000 in this lab)
+mlflow.set_tracking_uri("http://localhost:5000")
+client = MlflowClient()
+
+# --- 1. fraud-detection ---
+fraud_exp_id = client.create_experiment(name="fraud-detection")
+
+client.set_experiment_tag(
+    fraud_exp_id,
+    "mlflow.note.content",
+    "Model tracking for the fraud detection project — classification models to flag fraudulent transactions."
+)
+client.set_experiment_tag(fraud_exp_id, "team", "ml-platform")
+
+# --- 2. churn-prediction ---
+churn_exp_id = client.create_experiment(name="churn-prediction")
+
+client.set_experiment_tag(churn_exp_id, "team", "analytics")
+
+print("fraud-detection experiment_id:", fraud_exp_id)
+print("churn-prediction experiment_id:", churn_exp_id)
+
+```
+A few practical notes
+create_experiment raises an error if the name already exists. If you're scripting this idempotently (e.g. in a setup script that might rerun), guard it:
+```
+def get_or_create_experiment(client, name):
+    exp = client.get_experiment_by_name(name)
+    if exp is not None:
+        return exp.experiment_id
+    return client.create_experiment(name=name)
+```
+Verifying tags programmatically — useful for asserting the lab's success criteria before you even open the UI:
+```
+exp = client.get_experiment(fraud_exp_id)
+print(exp.tags)
+# {'mlflow.note.content': 'Model tracking for the fraud detection project...',
+#  'team': 'ml-platform'}
+```
 
 
