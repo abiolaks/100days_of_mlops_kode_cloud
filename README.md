@@ -9,3 +9,12 @@
 - dvc exp show --only-changed	Prints a comparison table of all experiments — showing the params that changed (max_depth) alongside the metrics (accuracy, f1_score) for each run, so you can see which one performed best.
 - dvc exp apply <best-exp-name>	Takes the experiment you pick (the one with the highest f1_score) and overwrites your actual workspace files — params.yaml, metrics.json, models/model.pkl — with that experiment's versions. This is the "promotion" step.
 - git add params.yaml dvc.lock metrics.json 
+
+The concept
+
+MLflow's MlflowClient (or the simpler mlflow module functions) gives you the same capabilities as the UI, but scriptable and repeatable. The three actions you did by hand map directly to three API calls:
+
+UI action	Python equivalent
+Create experiment:	client.create_experiment(name)
+Set description:	client.set_experiment_tag(exp_id, "mlflow.note.content", "...")
+Set a custom tag:	client.set_experiment_tag(exp_id, "team", "ml-platform")
